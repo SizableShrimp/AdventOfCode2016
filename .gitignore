@@ -1,0 +1,25 @@
+# IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+generated/
+generated_tests/
+
+# Eclipse
+bin/
+*.launch
+.settings
+.metadata
+.classpath
+.project
+
+# Gradle
+.gradle/
+build/
+
+# AOC
+aoc_input/
+session.txt
+run/

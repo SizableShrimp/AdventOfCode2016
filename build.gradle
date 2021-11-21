@@ -1,0 +1,32 @@
+plugins {
+    id 'java'
+}
+
+group 'me.sizableshrimp.adventofcode2016'
+version '0.1.0'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.projectlombok:lombok:1.18.22'
+    annotationProcessor 'org.projectlombok:lombok:1.18.22'
+    implementation 'one.util:streamex:0.8.0'
+    implementation 'com.google.guava:guava:31.0.1-jre'
+    implementation 'it.unimi.dsi:fastutil:8.5.6'
+    // implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
+
+    testImplementation 'org.openjdk.jmh:jmh-core:1.32'
+    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.32'
+}
+
+task jmh(type: JavaExec, dependsOn: testClasses) {
+    mainClass = 'org.openjdk.jmh.Main'
+    classpath = sourceSets.test.compileClasspath + sourceSets.test.runtimeClasspath
+    def toolchain = project.extensions.getByType(JavaPluginExtension.class).toolchain
+    def service = project.extensions.getByType(JavaToolchainService.class)
+    javaLauncher = service.launcherFor(toolchain)
+}
