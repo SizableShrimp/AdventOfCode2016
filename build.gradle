@@ -1,26 +1,50 @@
 plugins {
     id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '1.7.21'
 }
 
 group 'me.sizableshrimp.adventofcode2016'
 version '0.1.0'
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(18)
 
 repositories {
     mavenCentral()
 }
 
+sourceSets {
+    util
+    mainKotlin
+    data
+}
+
+configurations {
+    implementation.extendsFrom utilImplementation
+    animationProcessor.extendsFrom utilAnnotationProcessor
+    runtimeOnly.extendsFrom utilRuntimeOnly
+    compileOnly.extendsFrom utilCompileOnly
+
+    mainKotlinImplementation.extendsFrom utilImplementation
+    mainKotlinAnimationProcessor.extendsFrom utilAnnotationProcessor
+    mainKotlinRuntimeOnly.extendsFrom utilRuntimeOnly
+    mainKotlinCompileOnly.extendsFrom utilCompileOnly
+}
+
 dependencies {
-    implementation 'org.projectlombok:lombok:1.18.22'
-    annotationProcessor 'org.projectlombok:lombok:1.18.22'
-    implementation 'one.util:streamex:0.8.0'
-    implementation 'com.google.guava:guava:31.0.1-jre'
-    implementation 'it.unimi.dsi:fastutil:8.5.6'
+    mainKotlinImplementation sourceSets.util.output
+    mainKotlinImplementation sourceSets.data.output
+    implementation sourceSets.util.output
+    implementation sourceSets.data.output
+
+    utilImplementation 'org.projectlombok:lombok:1.18.24'
+    utilAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
+    utilImplementation 'one.util:streamex:0.8.1'
+    utilImplementation 'com.google.guava:guava:31.1-jre'
+    utilImplementation 'it.unimi.dsi:fastutil:8.5.9'
     // implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
 
-    testImplementation 'org.openjdk.jmh:jmh-core:1.32'
-    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.32'
+    testImplementation 'org.openjdk.jmh:jmh-core:1.35'
+    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
 }
 
 task jmh(type: JavaExec, dependsOn: testClasses) {
