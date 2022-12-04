@@ -91,6 +91,26 @@ public enum Direction {
         return CARDINAL_ORDINAL;
     }
 
+    public char getCharURDL() {
+        return switch (this) {
+            case NORTH -> 'U';
+            case EAST -> 'R';
+            case SOUTH -> 'D';
+            case WEST -> 'L';
+            default -> throw new IllegalStateException("Not a cardinal direction: " + this);
+        };
+    }
+
+    public char getCharNESW() {
+        return switch (this) {
+            case NORTH -> 'N';
+            case EAST -> 'E';
+            case SOUTH -> 'S';
+            case WEST -> 'W';
+            default -> throw new IllegalStateException("Not a cardinal direction: " + this);
+        };
+    }
+
     public Direction relativeDegrees(int degrees) {
         return fromDegrees(this.degrees + degrees);
     }
