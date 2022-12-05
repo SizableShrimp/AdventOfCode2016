@@ -23,12 +23,8 @@
 
 package me.sizableshrimp.adventofcode2016.days;
 
-import it.unimi.dsi.fastutil.longs.Long2BooleanMap;
-import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
-import it.unimi.dsi.fastutil.longs.LongOpenHashBigSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +34,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Queue;
@@ -49,9 +44,7 @@ import java.util.regex.Pattern;
 public class Day11 extends Day {
     private static final Pattern GENERATOR = Pattern.compile("(\\w+) generator");
     private static final Pattern MICROCHIP = Pattern.compile("(\\w+)-compatible microchip");
-    private static final List<String> PART_2_DEVICES = List.of("elerium", "dilithium");
     private final List<Device> devices = new ArrayList<>();
-    private final List<Device> devicesPart2 = new ArrayList<>();
     private long startingFloors;
 
     public static void main(String[] args) {
@@ -60,16 +53,40 @@ public class Day11 extends Day {
 
     @Override
     protected Result evaluate() {
-        int minSteps = simulate(this.devices);
-        int minStepsP2 = simulate(this.devicesPart2);
+        int minSteps = simulate();
 
-        return Result.of(minSteps, minStepsP2);
+        // Part 2 - LOL!
+        return Result.of(minSteps, minSteps + 24);
     }
 
-    private int simulate(List<Device> devices) {
+    private int simulate() {
+        int startSteps = 0;
+        long startingFloors = this.startingFloors;
+        List<Device> newDevices = new ArrayList<>(this.devices);
+
+        for (Device device : this.devices) {
+            if (!device.generator)
+                continue;
+
+            int floorIndex = Node.getFloorIndex(startingFloors, device.index);
+            if (floorIndex == 3)
+                continue;
+
+            if (floorIndex == Node.getFloorIndex(startingFloors, device.oppositeIndex)) {
+                if (Node.getCountOnFloor(this.devices.size(), startingFloors, floorIndex) == 2)
+                    continue;
+
+                // Smart thing that someone on the subreddit mega thread found
+                startSteps += (3 - floorIndex) * 4;
+                startingFloors = Node.updateFloors(floorIndex, startingFloors, 3 - floorIndex, device.index, device.oppositeIndex);
+                newDevices.remove(device);
+                newDevices.remove(this.devices.get(device.oppositeIndex));
+            }
+        }
+
         Queue<Node> queue = new PriorityQueue<>(Comparator.comparingInt(Node::steps));
-        Map<Node, Node> prevMap = null; // new HashMap<>();
-        queue.add(new Node(devices, devices.size(), 0, 0, this.startingFloors, 0));
+        // Intentionally use the old size so that higher device indices still work
+        queue.add(new Node(newDevices, this.devices.size(), 0, 0, startingFloors, startSteps));
         Long2IntMap seenMap = new Long2IntOpenHashMap();
 
         while (!queue.isEmpty()) {
@@ -80,12 +97,12 @@ public class Day11 extends Day {
             }
 
             node.forEachOnCurFloor(a -> {
-                node.tryMove(queue, prevMap, seenMap, a, null);
+                node.tryMove(queue, seenMap, a, null);
                 node.forEachOnCurFloor(b -> {
                     if (a == b)
                         return;
 
-                    node.tryMove(queue, prevMap, seenMap, a, b);
+                    node.tryMove(queue, seenMap, a, b);
                 });
             });
         }
@@ -93,67 +110,10 @@ public class Day11 extends Day {
         throw new IllegalStateException();
     }
 
-    private static String writeSteps(Node node, Map<Node, Node> prevMap) {
-        StringBuilder result = new StringBuilder();
-        List<Node> nodes = new ArrayList<>();
-        if (prevMap != null) {
-            Node parent = prevMap.get(node);
-            while (parent != null) {
-                nodes.add(0, parent);
-                parent = prevMap.get(parent);
-            }
-        }
-        nodes.add(node);
-        for (Node n : nodes) {
-            for (int i = 3; i >= 0; i--) {
-                result.append('F');
-                result.append(i + 1);
-                result.append(' ');
-                result.append(i == n.curFloorIdx ? "E  " : ".  ");
-                for (Device device : n.devices) {
-                    if (n.getFloorIndex(device) == i) {
-                        result.append(Character.toUpperCase(device.key.charAt(0)));
-                        result.append(device.generator ? 'G' : 'M');
-                        result.append(' ');
-                    } else {
-                        result.append(".  ");
-                    }
-                }
-                result.append('\n');
-            }
-            result.append('\n');
-        }
-
-        return result.toString();
-    }
-
-    private static String writeFloors(List<Device> devices, long floors) {
-        StringBuilder result = new StringBuilder();
-
-        for (int i = 3; i >= 0; i--) {
-            result.append('F');
-            result.append(i + 1);
-            result.append(' ');
-            for (Device device : devices) {
-                if (Node.getFloorIndex(floors, device.index) == i) {
-                    result.append(Character.toUpperCase(device.key.charAt(0)));
-                    result.append(device.generator ? 'G' : 'M');
-                    result.append(' ');
-                } else {
-                    result.append(".  ");
-                }
-            }
-            result.append('\n');
-        }
-
-        return result.toString();
-    }
-
     @Override
     protected void parse() {
         this.startingFloors = 0L;
         this.devices.clear();
-        this.devicesPart2.clear();
 
         for (int i = 0; i < 4; i++) {
             Matcher matcher = GENERATOR.matcher(lines.get(i));
@@ -176,15 +136,6 @@ public class Day11 extends Day {
                 b.setOppositeIndex(a.index);
             }
         }));
-
-        this.devicesPart2.addAll(this.devices);
-
-        // All new devices in part 2 are on the first floor, so we don't need to change the starting floors number because they would just pad zeros.
-        PART_2_DEVICES.forEach(extraDevice -> {
-            int idx = this.devicesPart2.size();
-            this.devicesPart2.add(new Device(extraDevice, true, idx, idx + 1));
-            this.devicesPart2.add(new Device(extraDevice, false, idx + 1, idx));
-        });
     }
 
     @Data
@@ -195,10 +146,6 @@ public class Day11 extends Day {
         private final boolean generator;
         private final int index;
         private int oppositeIndex;
-
-        boolean microchip() {
-            return !this.generator;
-        }
     }
 
     private record Node(List<Device> devices, int devicesCount, int minFloorIdx, int curFloorIdx, long floors, int steps) {
@@ -219,18 +166,34 @@ public class Day11 extends Day {
 
         @Override
         public String toString() {
-            return writeSteps(this, null);
+            StringBuilder result = new StringBuilder();
+
+            for (int i = 3; i >= 0; i--) {
+                result.append('F');
+                result.append(i + 1);
+                result.append(' ');
+                result.append(i == this.curFloorIdx ? "E  " : ".  ");
+                for (Device device : this.devices) {
+                    if (this.getFloorIndex(device) == i) {
+                        result.append(Character.toUpperCase(device.key.charAt(0)));
+                        result.append(device.generator ? 'G' : 'M');
+                        result.append(' ');
+                    } else {
+                        result.append(".  ");
+                    }
+                }
+                result.append('\n');
+            }
+            result.append('\n');
+
+            return result.toString();
         }
 
         boolean isFinished() {
-            return allOnFloor(this.floors, 3);
-        }
-
-        boolean allOnFloor(long floors, int floorIdx) {
-            long data = floors;
+            long data = this.floors;
 
             for (int i = 0; i < this.devicesCount; i++) {
-                if (data == 0 || (data & 3) != floorIdx)
+                if (data == 0 || (data & 3) != 3)
                     return false;
 
                 data >>= 2;
@@ -250,6 +213,20 @@ public class Day11 extends Day {
             }
 
             return true;
+        }
+
+        static int getCountOnFloor(int devicesCount, long floors, int floorIdx) {
+            int count = 0;
+            long data = floors;
+
+            for (int i = 0; i < devicesCount; i++) {
+                if ((data & 3) == floorIdx)
+                    count++;
+
+                data >>= 2;
+            }
+
+            return count;
         }
 
         int getFloorIndex(Device device) {
@@ -278,20 +255,9 @@ public class Day11 extends Day {
             }
         }
 
-        private static final LongSet checked = new LongOpenHashBigSet();
-        private static final Long2BooleanMap checkedMap = new Long2BooleanOpenHashMap();
-
-        private boolean isValid(Long2IntMap seenMap, int curFloorIdx, long floors) {
-            boolean checkedVal = checkedMap.get(floors);
-            if (checked.contains(floors) && !checkedVal)
-                return false;
-
-            long key = encodeKey(this.devices, floors, curFloorIdx);
+        private boolean isValid(Long2IntMap seenMap, long key, long floors) {
             if (seenMap.containsKey(key) && this.steps + 1 >= seenMap.get(key))
                 return false;
-
-            if (checkedVal)
-                return true;
 
             for (Device microchip : this.devices) {
                 if (microchip.generator)
@@ -310,80 +276,41 @@ public class Day11 extends Day {
             return true;
         }
 
-        void tryMove(Queue<Node> queue, Map<Node, Node> prevMap, Long2IntMap seenMap, Device a, @Nullable Device b) {
+        void tryMove(Queue<Node> queue, Long2IntMap seenMap, Device a, @Nullable Device b) {
             boolean canMoveDown = this.curFloorIdx > this.minFloorIdx;
             boolean canMoveUp = this.curFloorIdx < 3;
 
             if (canMoveUp)
-                tryMove(1, queue, prevMap, seenMap, a, b);
+                tryMove(1, queue, seenMap, a, b);
 
             if (canMoveDown)
-                tryMove(-1, queue, prevMap, seenMap, a, b);
+                tryMove(-1, queue, seenMap, a, b);
         }
 
-        void tryMove(int delta, Queue<Node> queue, Map<Node, Node> prevMap, Long2IntMap seenMap, Device a, @Nullable Device b) {
+        void tryMove(int delta, Queue<Node> queue, Long2IntMap seenMap, Device a, @Nullable Device b) {
             int newFloorIdx = this.curFloorIdx + delta;
-            long newFloors = updateFloors(delta, a, b);
+            long newFloors = updateFloors(this.curFloorIdx, this.floors, delta, a.index, b == null ? -1 : b.index);
+            long key = (newFloors << 2) | newFloorIdx;
 
-            if (isValid(seenMap, newFloorIdx, newFloors)) {
-                Node newNode = this.newNode(newFloorIdx, newFloors, false);
-                if (prevMap != null)
-                    prevMap.put(newNode, this);
-                seenMap.put(encodeKey(this.devices, newFloors, newFloorIdx), newNode.steps);
+            if (isValid(seenMap, key, newFloors)) {
+                Node newNode = this.newNode(newFloorIdx, newFloors, delta > 1 && this.minFloorIdx + 1 == this.curFloorIdx && this.noneOnFloor(newFloors, this.curFloorIdx));
+                seenMap.put(key, newNode.steps);
                 queue.add(newNode);
             }
         }
 
-        private static long encodeKey(List<Device> devices, long floors, int curFloorIdx) {
-            return (floors << 2) | curFloorIdx;
-            // long result = 0;
-            // for (Device device : devices) {
-            //     if (device.generator) {
-            //         int floorIdxGen = getFloorIndex(floors, device.index);
-            //         int floorIdxChip = getFloorIndex(floors, device.oppositeIndex);
-            //         int subPart = (Math.min(floorIdxGen, floorIdxChip) << 2 | Math.max(floorIdxGen, floorIdxChip));
-            //         if (result == 0) {
-            //             result = subPart;
-            //         } else {
-            //             int i = 0;
-            //             for (long data = result; ; data >>= 4) {
-            //                 if ((data & 0b1111) <= subPart) {
-            //                     int place = i << 2;
-            // TODO FIX
+        static long updateFloors(int curFloorIdx, long floors, int delta, int aIndex, int bIndex) {
+            long newData = curFloorIdx ^ (curFloorIdx + delta);
+            int aIdx = aIndex << 1;
+            long newFloors = floors ^ (newData << aIdx);
 
-            //                     long mask = (Long.MAX_VALUE >> place) << place;
-            //                     result = Math.abs((result & mask) << 4 | subPart | (result & mask));
-            //                     break;
-            //                 }
-            //                 i++;
-            //             }
-            //         }
-            //     }
-            // }
-            // return (result << 2) | curFloorIdx;
-        }
-
-        long updateFloors(int delta, Device a, @Nullable Device b) {
-            long newData = this.curFloorIdx ^ (this.curFloorIdx + delta);
-            int aIdx = a.index << 1;
-            long newFloors = this.floors ^ (newData << aIdx);
-
-            if (b != null) {
-                int bIdx = b.index << 1;
+            if (bIndex != -1) {
+                int bIdx = bIndex << 1;
                 return newFloors ^ (newData << bIdx);
             }
 
             return newFloors;
         }
-
-        // int getScore() {
-        //     int score = 0;
-        //     for (int i = 4; i > 0; i--) {
-        //         Set<Device> floor = this.floors.get(i - 1);
-        //         score += floor.size() * i;
-        //     }
-        //     return score;
-        // }
 
         Node newNode(int curFloorIdx, long newFloors, boolean increaseMinFloorIdx) {
             return new Node(this.devices, this.devicesCount, increaseMinFloorIdx ? this.minFloorIdx + 1 : this.minFloorIdx, curFloorIdx, newFloors, steps + 1);
