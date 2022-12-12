@@ -24,7 +24,9 @@
 package me.sizableshrimp.adventofcode2016.helper;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -38,6 +40,18 @@ public class Permutator {
      */
     public static <T> Set<List<T>> permute(List<T> input) {
         return internalPermute(new ArrayList<>(input));
+    }
+
+    /**
+     * Returns an iterator that lazily permutes the input collection into all possible permutations
+     * using the Steinhaus-Johnson-Trotter algorithm (also called plain changes).
+     *
+     * @param input The input collection.
+     * @param <T> The type of the collection used when permuting.
+     * @return An iterator that lazily permutes the input collection into all possible permutations
+     */
+    public static <T> Iterator<List<T>> permuteIterator(Collection<T> input) {
+        return new PermutationIterator<>(input);
     }
 
     private static <T> Set<List<T>> internalPermute(List<T> base) {

@@ -30,7 +30,7 @@ class Day20 : Day() {
 
     override fun evaluate(): Result {
         var totalAllowedIps = 0
-        var firstAllowedIp = 0L
+        var firstAllowedIp = -1L
         var currentIp = 0L
 
         val max = UInt.MAX_VALUE.toLong()
@@ -39,7 +39,7 @@ class Day20 : Day() {
             val range = this.ranges.find { it.contains(currentIp) }
 
             if (range == null) {
-                if (firstAllowedIp == 0L)
+                if (firstAllowedIp == -1L)
                     firstAllowedIp = currentIp
                 currentIp++
                 totalAllowedIps++
