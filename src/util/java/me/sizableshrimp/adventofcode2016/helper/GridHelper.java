@@ -22,10 +22,11 @@
  */
 
 package me.sizableshrimp.adventofcode2016.helper;
-
 import it.unimi.dsi.fastutil.chars.Char2CharFunction;
 import it.unimi.dsi.fastutil.chars.Char2IntFunction;
 import it.unimi.dsi.fastutil.chars.Char2LongFunction;
+import it.unimi.dsi.fastutil.chars.Char2ObjectFunction;
+import it.unimi.dsi.fastutil.chars.CharPredicate;
 import it.unimi.dsi.fastutil.ints.Int2ObjectFunction;
 import me.sizableshrimp.adventofcode2016.templates.Coordinate;
 import me.sizableshrimp.adventofcode2016.templates.EnumState;
@@ -33,26 +34,23 @@ import me.sizableshrimp.adventofcode2016.templates.EnumState;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.Predicate;
 
 public class GridHelper {
     /**
-     * @param generator A {@link BiFunction} that provides two numbers in the form (y, x) and should output a 2d array of type {@link T}.
+     * @param generator A {@link GridFactory} that provides two numbers in the form (y, x) and should output a 2d array of type {@link T}.
      * @param lines The list of lines to convert.
      * @param func The function to transform a specific character into type {@link T}
      * @param <T> The array type to be converted to from the list of lines.
      * @return A 2d-array holding objects of type {@link T} converted from {@code func}
      * where the outer array holds the y-coordinate and the inner array holds the x-coordinate.
      */
-    public static <T> T[][] convert(BiFunction<Integer, Integer, T[][]> generator, List<String> lines, Function<Character, T> func) {
-        T[][] grid = generator.apply(lines.size(), lines.get(0).length());
+    public static <T> T[][] convert(GridFactory<T[][]> generator, List<String> lines, Char2ObjectFunction<T> func) {
+        T[][] grid = generator.create(lines.size(), lines.get(0).length());
         return convert(grid, lines, func);
     }
 
-    public static <T> T[][] convert(T[][] grid, List<String> lines, Function<Character, T> func) {
-        convert(lines, (y, x, c) -> grid[y][x] = func.apply(c));
+    public static <T> T[][] convert(T[][] grid, List<String> lines, Char2ObjectFunction<T> func) {
+        convert(lines, (y, x, c) -> grid[y][x] = func.get(c));
         return grid;
     }
 
@@ -68,26 +66,26 @@ public class GridHelper {
 
     // Java doesn't let you make generic arrays... stupid
     @SuppressWarnings("unchecked")
-    public static <T extends Enum<T> & EnumState<T>> T[][] convert(BiFunction<Integer, Integer, T[][]> generator, List<String> lines) {
-        T[][] grid = generator.apply(lines.size(), lines.get(0).length());
+    public static <T extends Enum<T> & EnumState<T>> T[][] convert(GridFactory<T[][]> generator, List<String> lines) {
+        T[][] grid = generator.create(lines.size(), lines.get(0).length());
         T[] enumConstants = ((Class<T>) grid.getClass().getComponentType().getComponentType()).getEnumConstants();
         return convert(grid, lines, c -> Parser.parseEnumState(enumConstants, c));
     }
 
-    public static <T> T[][] reflectY(BiFunction<Integer, Integer, T[][]> generator, T[][] grid) {
+    public static <T> T[][] reflectY(GridFactory<T[][]> generator, T[][] grid) {
         int yLength = grid.length;
         int xLength = grid[0].length;
-        T[][] reflected = generator.apply(yLength, xLength);
+        T[][] reflected = generator.create(yLength, xLength);
         for (int y = 0; y < yLength; y++) {
             reflected[y] = Arrays.copyOf(grid[yLength - y - 1], xLength);
         }
         return reflected;
     }
 
-    public static <T> T[][] reflectX(BiFunction<Integer, Integer, T[][]> generator, T[][] grid) {
+    public static <T> T[][] reflectX(GridFactory<T[][]> generator, T[][] grid) {
         int yLength = grid.length;
         int xLength = grid[0].length;
-        T[][] reflected = generator.apply(yLength, xLength);
+        T[][] reflected = generator.create(yLength, xLength);
         for (int y = 0; y < yLength; y++) {
             for (int x = 0; x < xLength; x++) {
                 reflected[y][x] = grid[y][xLength - x - 1];
@@ -96,7 +94,7 @@ public class GridHelper {
         return reflected;
     }
 
-    public static <T> T[][] rotate(BiFunction<Integer, Integer, T[][]> generator, T[][] grid, int degrees) {
+    public static <T> T[][] rotate(GridFactory<T[][]> generator, T[][] grid, int degrees) {
         if (degrees < 0)
             degrees = 360 + degrees;
         degrees %= 360;
@@ -104,7 +102,7 @@ public class GridHelper {
         int yLength = grid.length;
         int xLength = grid[0].length;
         for (int i = 0; i < degrees; i += 90) {
-            T[][] rotated = generator.apply(yLength, xLength);
+            T[][] rotated = generator.create(yLength, xLength);
             for (int y = 0; y < yLength; y++) {
                 for (int x = 0; x < xLength; x++) {
                     rotated[y][x] = grid[xLength - x - 1][y];
@@ -115,11 +113,11 @@ public class GridHelper {
         return grid;
     }
 
-    public static boolean[][] convertBool(List<String> lines, Predicate<Character> pred) {
+    public static boolean[][] convertBool(List<String> lines, CharPredicate pred) {
         return convertBool(new boolean[lines.size()][lines.get(0).length()], lines, pred);
     }
 
-    public static boolean[][] convertBool(boolean[][] grid, List<String> lines, Predicate<Character> pred) {
+    public static boolean[][] convertBool(boolean[][] grid, List<String> lines, CharPredicate pred) {
         convert(lines, (y, x, c) -> grid[y][x] = pred.test(c));
         return grid;
     }
@@ -149,6 +147,21 @@ public class GridHelper {
     public static char[][] convertChar(char[][] grid, List<String> lines, Char2CharFunction func) {
         convert(lines, (y, x, c) -> grid[y][x] = func.apply(c));
         return grid;
+    }
+
+    public static Coordinate findCoordinate(List<String> lines, char targetChar) {
+        for (int y = 0; y < lines.size(); y++) {
+            String line = lines.get(y);
+            int lineLength = line.length();
+
+            for (int x = 0; x < lineLength; x++) {
+                char c = line.charAt(x);
+                if (c == targetChar)
+                    return Coordinate.of(x, y);
+            }
+        }
+
+        throw new IllegalStateException();
     }
 
     public static <T> void print(T[][] grid) {
@@ -339,5 +352,10 @@ public class GridHelper {
     @FunctionalInterface
     public interface GridConsumer {
         void accept(int y, int x, char c);
+    }
+
+    @FunctionalInterface
+    public interface GridFactory<T> {
+        T create(int height, int width);
     }
 }
